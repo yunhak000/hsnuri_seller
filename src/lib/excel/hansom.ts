@@ -14,16 +14,14 @@ export const buildHansomMap = async (
   const headers = readHeadersFromRow1(ws);
   const rows = readRowsAsObjects(ws, headers);
 
-  // 키 컬럼: 거래처주문번호 (없으면 상품주문번호로 폴백)
-  const keyField = headers.includes("거래처주문번호")
-    ? "거래처주문번호"
-    : headers.includes("상품주문번호")
-      ? "상품주문번호"
-      : null;
+  // 기타 양식의 고객주문번호를 우선 사용하고 기존 결과 양식도 지원합니다.
+  const keyField = ["고객주문번호", "거래처주문번호", "상품주문번호"].find(
+    (header) => headers.includes(header),
+  );
 
   if (!keyField)
     throw new Error(
-      "결과 엑셀에서 주문번호 컬럼을 찾지 못했어요. (거래처주문번호/상품주문번호)",
+      "결과 엑셀에서 주문번호 컬럼을 찾지 못했어요. (고객주문번호/거래처주문번호/상품주문번호)",
     );
 
   if (!headers.includes("운송장번호"))

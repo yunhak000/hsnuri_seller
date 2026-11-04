@@ -508,7 +508,7 @@ export default function HomePage() {
                 A단계 · 원본 업로드 → 통합발주서 생성
               </div>
               <div className="mt-1 text-sm text-neutral-600">
-                여러 파일을 한 번에 올리면 헤더로 자동 판별해서 합칩니다.
+                여러 파일을 한 번에 올리면 자동 판별해 기타 양식으로 합칩니다.
               </div>
             </div>
 
@@ -650,14 +650,14 @@ export default function HomePage() {
             B단계 · 결과 업로드 → ZIP 다운로드
           </div>
           <div className="mt-1 text-sm text-neutral-600">
-            결과 엑셀에서 거래처주문번호(또는 상품주문번호)로 매칭해
+            결과 엑셀에서 고객주문번호(또는 거래처주문번호/상품주문번호)로 매칭해
             운송장번호를 채웁니다.
           </div>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <UploadBox
               title="결과 엑셀 업로드"
-              description="운송장번호 + 거래처주문번호(또는 상품주문번호)가 포함된 파일"
+              description="운송장번호 + 고객주문번호(또는 거래처주문번호/상품주문번호)가 포함된 파일"
               multiple={false}
               disabled={!!busy}
               onFiles={onUploadHansomResult}

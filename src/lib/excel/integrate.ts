@@ -2,12 +2,6 @@ import ExcelJS from "exceljs";
 import { TStandardRow } from "@/lib/types";
 import { readWorkbook, getFirstSheet, readHeadersFromRow1 } from "./read";
 
-const buildColIndex = (headers: string[]) => {
-  const map = new Map<string, number>();
-  headers.forEach((h, idx) => map.set(h, idx + 1));
-  return map;
-};
-
 const dedupeByOrderKey = <T extends { channel: string; orderKey: string }>(
   rows: T[],
 ) => {
@@ -49,85 +43,44 @@ export const buildIntegrationWorkbook = async (
   const ws = getFirstSheet(wb);
 
   const headers = readHeadersFromRow1(ws);
-  const col = buildColIndex(headers);
-
-  // ✅ 요구사항: 통합발주서 출력에서 "상품주문번호" 컬럼명을 "거래처주문번호"로 보이게
-  // - 값(주문번호 자체)은 그대로 사용
-  // - 템플릿이 아직 "상품주문번호" 헤더만 가지고 있어도 자동으로 바꿔치기
-  const orderKeyHeaderOld = "상품주문번호";
-  const orderKeyHeaderNew = "거래처주문번호";
-
-  const oldCol = col.get(orderKeyHeaderOld);
-  const newCol = col.get(orderKeyHeaderNew);
-
-  if (!newCol && oldCol) {
-    // 1행 헤더 텍스트 교체
-    ws.getRow(1).getCell(oldCol).value = orderKeyHeaderNew;
-    ws.getRow(1).commit();
-
-    // col index map도 갱신
-    col.delete(orderKeyHeaderOld);
-    col.set(orderKeyHeaderNew, oldCol);
-  }
-
   const rows = dedupeByOrderKey(standardRows);
-
   const baseRow = ws.getRow(2);
+  const rowHeight = baseRow.height;
+  const cellStyles = headers.map((_, i) => ({ ...baseRow.getCell(i + 1).style }));
 
-  if (ws.rowCount >= 2) {
-    ws.spliceRows(2, ws.rowCount - 1);
+  // 서식만 있는 빈 행도 있으므로 기존 본문을 비우고 2행부터 씁니다.
+  for (let r = 2; r <= ws.rowCount; r++) {
+    ws.getRow(r).values = [];
   }
-
-  const toCellValue = (v: unknown): ExcelJS.CellValue => {
-    if (v == null) return "";
-
-    // ExcelJS가 허용하는 기본 타입들
-    if (typeof v === "string") return v;
-    if (typeof v === "number") return v;
-    if (typeof v === "boolean") return v;
-    if (v instanceof Date) return v;
-
-    // 나머지는 안전하게 문자열로 변환
-    return String(v);
-  };
-
-  const writeCell = (row: ExcelJS.Row, header: string, value: unknown) => {
-    const c = col.get(header);
-    if (!c) return;
-
-    row.getCell(c).value = toCellValue(value);
-  };
 
   rows.forEach((s, i) => {
-    const rIndex = 2 + i;
-    ws.insertRow(rIndex, []);
-    const row = ws.getRow(rIndex);
+    // 발송인 정보는 주문자 정보와 구분하며, 제공되지 않은 값은 비워 둡니다.
+    const values: Record<string, ExcelJS.CellValue> = {
+      기타1: "",
+      보내는분성명: "",
+      보내는분전화번호: "",
+      보내는분우편번호: "",
+      "보내는분주소(전체, 분할)": "",
+      품목명: s.productName,
+      박스수량: s.quantity,
+      받는분성명: s.receiverName,
+      받는분전화번호: s.receiverPhone,
+      받는분우편번호: s.zipCode ?? "",
+      "받는분주소(전체, 분할)": s.address,
+      배송메세지1: s.message ?? "",
+      고객주문번호: s.orderKey,
+      운송장번호: "",
+    };
+    const row = ws.getRow(i + 2);
+    row.height = rowHeight;
 
-    row.height = baseRow.height;
-
-    row.eachCell({ includeEmpty: true }, (cell, colNum) => {
-      const baseCell = baseRow.getCell(colNum);
-      cell.numFmt = baseCell.numFmt;
-      cell.border = baseCell.border;
-      cell.alignment = baseCell.alignment;
-      cell.font = baseCell.font;
-      cell.fill = baseCell.fill;
+    headers.forEach((header, i) => {
+      const cell = row.getCell(i + 1);
+      cell.style = { ...cellStyles[i] };
+      cell.value = values[header] ?? "";
+      // 전화번호·우편번호·긴 주문번호의 앞자리 0과 원문을 보존합니다.
+      cell.numFmt = header === "박스수량" ? "0" : "@";
     });
-
-    writeCell(row, "주문일시", String(s.orderedAt ?? ""));
-    writeCell(row, "상품명", s.productName);
-    writeCell(row, "수량", s.quantity);
-    writeCell(row, "수취인명", s.receiverName);
-    writeCell(row, "수취인연락처1", s.receiverPhone);
-    writeCell(row, "우편번호", s.zipCode ?? "");
-    writeCell(row, "통합배송지", s.address);
-    writeCell(row, "배송메세지", s.message ?? "");
-    writeCell(row, "거래처주문번호", s.orderKey);
-    writeCell(row, "운송장번호", "");
-    writeCell(row, "구매자명", s.buyerName);
-    writeCell(row, "구매자연락처", s.buyerPhone);
-    writeCell(row, "어드민용 구매자명", s.adminBuyerName);
-    writeCell(row, "어드민용 구매자연락처", s.adminBuyerPhone);
 
     row.commit();
   });
