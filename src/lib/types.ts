@@ -1,4 +1,5 @@
 export type TChannel = "NAVER" | "TOSS" | "COUPANG" | "MANDARINSPOON";
+export type TStep = 1 | 2 | 3 | 4;
 
 export type TParsedFile = {
   id: string;
@@ -40,6 +41,9 @@ export type TStandardRow = {
 export type THansomResultMap = Map<string, string>; // orderKey -> trackingNumber
 
 export type TAppState = {
+  step?: TStep;
+  resultFileName?: string;
+  zipDownloaded?: boolean;
   // A단계
   parsedFiles: TParsedFile[];
   standardRows: TStandardRow[];

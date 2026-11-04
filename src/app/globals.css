@@ -1,26 +1,103 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f2f4f6;
+  --foreground: #191f28;
+  --primary: #006837;
+  --primary-hover: #00522c;
+  --primary-soft: #e8f3ed;
+  --muted: #6b7684;
+  --line: #e5e8eb;
+  --danger: #c63535;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-danger: var(--danger);
 }
 
 body {
   background: var(--background);
-  /* color: var(--foreground); */
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--foreground);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+    "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+a,
+input,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+button:not(:disabled),
+summary {
+  cursor: pointer;
+}
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+}
+
+@layer components {
+  .surface {
+    @apply rounded-3xl bg-white p-6 shadow-[0_2px_8px_rgba(25,31,40,0.025)] sm:p-8;
+  }
+  .btn-primary {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-[#dce9e2] disabled:text-[#71897c];
+  }
+  .btn-secondary {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#f2f4f6] px-5 py-3 text-sm font-semibold text-[#4e5968] transition-colors hover:bg-[#e5e8eb] disabled:cursor-not-allowed disabled:opacity-40;
+  }
+}
+
+.app-dialog {
+  width: min(480px, calc(100% - 32px));
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  border: none;
+  border-radius: 24px;
+  background: white;
+  color: var(--foreground);
+  box-shadow: 0 24px 80px #191f2826;
+}
+.app-dialog::backdrop {
+  background: #191f2866;
+  backdrop-filter: blur(3px);
+}
+
+@keyframes stepIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.step-anim {
+  animation: stepIn 0.28s ease-out;
+}
+.action-bar {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }
