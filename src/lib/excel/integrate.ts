@@ -54,11 +54,11 @@ export const buildIntegrationWorkbook = async (
   }
 
   rows.forEach((s, i) => {
-    // 기존 통합발주서의 구매자명을 기타 양식의 보내는분성명에 연결합니다.
+    // 기존 통합발주서의 구매자명·연락처를 기타 양식의 보내는분 정보에 연결합니다.
     const values: Record<string, ExcelJS.CellValue> = {
       기타1: "",
       보내는분성명: s.buyerName,
-      보내는분전화번호: "",
+      보내는분전화번호: s.buyerPhone,
       보내는분우편번호: "",
       "보내는분주소(전체, 분할)": "",
       품목명: s.productName,
