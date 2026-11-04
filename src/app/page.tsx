@@ -22,6 +22,14 @@ import { fillTrackingToOriginal } from "@/lib/excel/fillTracking";
 import { downloadZip, downloadXlsx } from "@/lib/excel/zip";
 import { clearState, loadState, saveState } from "@/lib/storage/storage";
 import { canVisitStep, getRestoredStep } from "@/lib/workflow";
+import { useAppUpdate } from "@/hooks/useAppUpdate";
+import {
+  APP_VERSION,
+  UPDATE_QUERY,
+  keepPasswordForUpdate,
+  takePasswordAfterUpdate,
+  updatePageUrl,
+} from "@/lib/appUpdate";
 import type {
   TAppState,
   TChannel,
@@ -87,12 +95,32 @@ export default function HomePage() {
   const passwordResolver = useRef<((password: string | null) => void) | null>(
     null,
   );
-  // 작업 초기화 후에도 재사용하되 새로고침·탭 종료 시에는 사라집니다.
+  // 작업 초기화 후에도 재사용하고, 앱 업데이트 시에만 한 번 복원합니다.
   const sessionPassword = useRef("");
+  const restoredUpdatePassword = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const step = state.step ?? 1;
   const disabled = !hydrated || !!busy;
   const report = state.matchReport;
+  const { newVersion, checkForUpdate } = useAppUpdate(hydrated && !busy);
+
+  useEffect(() => {
+    if (restoredUpdatePassword.current) return;
+    restoredUpdatePassword.current = true;
+    const url = new URL(window.location.href);
+    try {
+      sessionPassword.current = takePasswordAfterUpdate(
+        window.sessionStorage,
+        APP_VERSION,
+      );
+    } catch {
+      /* 브라우저에서 임시 저장 접근을 차단해도 원본 업로드는 허용합니다. */
+    }
+    if (url.searchParams.has(UPDATE_QUERY)) {
+      url.searchParams.delete(UPDATE_QUERY);
+      window.history.replaceState(window.history.state, "", url.href);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -250,6 +278,7 @@ export default function HomePage() {
     const standards: TStandardRow[] = [];
     const failures: string[] = [];
     try {
+      if (newVersion || (await checkForUpdate())) return;
       for (const file of files) {
         try {
           const buffer = await ensureReadable(file);
@@ -304,8 +333,10 @@ export default function HomePage() {
     setErrors([]);
     setBusy("통합발주서를 만들고 있어요");
     try {
+      if (newVersion || (await checkForUpdate())) return;
       const response = await fetch(
         "/templates/integration-order-template-clean.xlsx",
+        { cache: "no-store" },
       );
       if (!response.ok)
         throw new Error(
@@ -330,15 +361,16 @@ export default function HomePage() {
     if (!file) return;
     setErrors([]);
     setBusy("운송장번호를 매칭하고 있어요");
-    setState((previous) => ({
-      ...previous,
-      resultFileName: undefined,
-      hansomResultXlsx: undefined,
-      hansomMap: undefined,
-      matchReport: undefined,
-      zipDownloaded: false,
-    }));
     try {
+      if (newVersion || (await checkForUpdate())) return;
+      setState((previous) => ({
+        ...previous,
+        resultFileName: undefined,
+        hansomResultXlsx: undefined,
+        hansomMap: undefined,
+        matchReport: undefined,
+        zipDownloaded: false,
+      }));
       const buffer = await ensureReadable(file);
       const result = await buildHansomMap(buffer);
       const map = new Map(
@@ -378,6 +410,7 @@ export default function HomePage() {
     setErrors([]);
     setBusy("판매처별 ZIP 파일을 만들고 있어요");
     try {
+      if (newVersion || (await checkForUpdate())) return;
       const map = new Map(Object.entries(state.hansomMap ?? {}));
       const outputs: { filename: string; data: ArrayBuffer }[] = [];
       // 기존 판매처별 첫 원본 출력 방식을 유지합니다.
@@ -422,6 +455,34 @@ export default function HomePage() {
     } catch {
       setErrors(["초기화하지 못했어요. 다시 시도해주세요."]);
     } finally {
+      setBusy(null);
+    }
+  };
+
+  const onApplyUpdate = async () => {
+    if (disabled || !newVersion) return;
+    setBusy("작업을 저장하고 최신 화면을 불러오고 있어요");
+    try {
+      await saveState(state);
+      try {
+        keepPasswordForUpdate(
+          window.sessionStorage,
+          sessionPassword.current,
+          newVersion,
+        );
+      } catch {
+        /* 임시 저장이 차단되어도 최신 화면으로 이동합니다. */
+      }
+      window.location.replace(updatePageUrl(window.location.href, newVersion));
+    } catch {
+      try {
+        takePasswordAfterUpdate(window.sessionStorage, newVersion);
+      } catch {
+        /* 화면 이동 실패 시 남아 있는 일회성 비밀번호도 정리합니다. */
+      }
+      setErrors([
+        "작업을 저장하거나 업데이트하지 못했어요. 인터넷 연결과 브라우저 저장 공간을 확인한 뒤 다시 시도해주세요.",
+      ]);
       setBusy(null);
     }
   };
@@ -502,6 +563,29 @@ export default function HomePage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-5 pt-7 sm:px-8 sm:pt-10">
+        {newVersion && (
+          <div
+            role="status"
+            className="sticky top-4 z-40 mb-6 flex flex-col items-start justify-between gap-4 rounded-2xl border border-primary/15 bg-primary-soft p-5 sm:flex-row sm:items-center"
+          >
+            <div>
+              <p className="font-bold text-primary">새로운 업데이트가 있어요</p>
+              <p className="mt-1 text-sm leading-relaxed text-[#4e5968]">
+                작업을 저장한 뒤 최신 화면으로 이동해요. 업데이트 후 이어서
+                진행해주세요.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onApplyUpdate}
+              disabled={disabled}
+              className="btn-primary w-full shrink-0 sm:w-auto"
+            >
+              <AppIcon name="reset" width={18} height={18} />
+              지금 업데이트
+            </button>
+          </div>
+        )}
         <nav aria-label="주문 처리 단계" className="mb-9 sm:mb-11">
           <ol className="grid grid-cols-4 gap-1 rounded-2xl bg-white p-2 sm:gap-2 sm:p-3">
             {STEPS.map((item) => (
@@ -981,7 +1065,11 @@ export default function HomePage() {
               >
                 <span className="sm:hidden">다음</span>
                 <span className="hidden sm:inline">
-                  {step === 2 ? "결과 업로드로" : step === 3 ? "매칭 결과 확인" : "다음"}
+                  {step === 2
+                    ? "결과 업로드로"
+                    : step === 3
+                      ? "매칭 결과 확인"
+                      : "다음"}
                 </span>
                 <AppIcon name="next" width={18} height={18} />
               </button>
@@ -993,8 +1081,12 @@ export default function HomePage() {
                 onClick={onDownloadZip}
               >
                 <AppIcon name="download" width={18} height={18} />
-                <span className="sm:hidden">{state.zipDownloaded ? "다시 받기" : "ZIP 받기"}</span>
-                <span className="hidden sm:inline">{state.zipDownloaded ? "ZIP 다시 받기" : "ZIP 다운로드"}</span>
+                <span className="sm:hidden">
+                  {state.zipDownloaded ? "다시 받기" : "ZIP 받기"}
+                </span>
+                <span className="hidden sm:inline">
+                  {state.zipDownloaded ? "ZIP 다시 받기" : "ZIP 다운로드"}
+                </span>
               </button>
             )}
           </div>
