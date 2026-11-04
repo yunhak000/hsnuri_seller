@@ -87,6 +87,7 @@ export default function HomePage() {
   const passwordResolver = useRef<((password: string | null) => void) | null>(
     null,
   );
+  // 작업 초기화 후에도 재사용하되 새로고침·탭 종료 시에는 사라집니다.
   const sessionPassword = useRef("");
   const heading = useRef<HTMLHeadingElement>(null);
   const step = state.step ?? 1;
@@ -417,7 +418,6 @@ export default function HomePage() {
     try {
       await clearState();
       setState(INITIAL_STATE);
-      sessionPassword.current = "";
       setErrors([]);
     } catch {
       setErrors(["초기화하지 못했어요. 다시 시도해주세요."]);
@@ -907,8 +907,8 @@ export default function HomePage() {
               </p>
               <p className="mt-2 text-xs leading-6 text-muted">
                 새로고침해도 이어서 작업할 수 있어요. 공용 PC에서는 작업 후
-                ‘처음부터 다시’를 눌러주세요. 암호 파일은 복호화를 위해 서버로
-                전송됩니다.
+                ‘처음부터 다시’를 누르고 탭을 닫아주세요. 암호 파일은 복호화를
+                위해 서버로 전송됩니다.
               </p>
             </div>
           </aside>

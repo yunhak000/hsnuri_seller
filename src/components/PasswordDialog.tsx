@@ -82,8 +82,8 @@ export function PasswordDialog({
           </p>
         )}
         <p className="mt-3 text-xs leading-relaxed text-muted">
-          파일과 비밀번호는 복호화를 위해 서버로 전송됩니다. 비밀번호는 현재
-          작업 중에만 재사용합니다.
+          파일과 비밀번호는 복호화를 위해 서버로 전송됩니다. 비밀번호는 이
+          탭에서 자동으로 재사용하며, 새로고침하거나 탭을 닫으면 사라집니다.
         </p>
         <div className="mt-7 grid grid-cols-2 gap-3">
           <button
